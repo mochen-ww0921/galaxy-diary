@@ -1,0 +1,7 @@
+{
+  "name": "Galaxy Diary - 星系日记",
+  "description": "A high-performance interactive galaxy visualization platform for cosmic journaling and exploration, featuring a canvas-based engine with zoom/pan capabilities.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
