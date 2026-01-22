@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galaxy Diary - 星系日记</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #020205;
+      color: white;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes modalEntrance {
+      from { opacity: 0; transform: scale(0.9) translateY(30px); filter: blur(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+    }
+
+    @keyframes dissipateSmoke {
+      0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+      100% { opacity: 0; transform: scale(1.1) translateY(-20px); filter: blur(20px); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+
+    @keyframes orbitPulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.5); opacity: 1; }
+    }
+
+    @keyframes outwardPing {
+      0% { transform: scale(1); opacity: 0.5; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    @keyframes tunnelFlow {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    @keyframes starStreak {
+      0% { transform: translateX(-100%) scaleX(0); opacity: 0; }
+      50% { transform: translateX(0%) scaleX(1); opacity: 1; }
+      100% { transform: translateX(100%) scaleX(0); opacity: 0; }
+    }
+
+    .animate-entrance { animation: modalEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-dissipate { animation: dissipateSmoke 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-orbit-pulse { animation: orbitPulse 2s infinite ease-in-out; }
+    .animate-outward-ping { animation: outwardPing 2s infinite cubic-bezier(0, 0, 0.2, 1); }
+    .shake { animation: shake 0.4s ease-in-out; }
+    .tracking-cosmic { letter-spacing: 0.4em; }
+
+    /* Timeline Styling */
+    .timeline-track {
+      background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(99, 102, 241, 0.2), rgba(255,255,255,0.05));
+      background-size: 200% 100%;
+      transition: all 0.5s ease;
+    }
+    .timeline-dragging .timeline-track {
+      background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(99, 102, 241, 0.6), rgba(255,255,255,0.1));
+      background-size: 200% 100%;
+      animation: tunnelFlow 2s linear infinite;
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+    }
+
+    .streak {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      width: 100px;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .timeline-dragging .streak {
+      animation: starStreak 1.5s infinite linear;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 18px; width: 18px; border-radius: 50%;
+      background: #fff; cursor: pointer;
+      box-shadow: 0 0 15px rgba(255,255,255,0.8), 0 0 30px rgba(99, 102, 241, 0.6);
+      border: 2px solid rgba(99, 102, 241, 1);
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .timeline-dragging input[type=range]::-webkit-slider-thumb {
+      transform: scale(1.4);
+      box-shadow: 0 0 25px rgba(255,255,255,1), 0 0 50px rgba(99, 102, 241, 0.9);
+    }
+    
+    canvas { outline: none; }
+    
+    #hand-video-preview {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      width: 120px;
+      height: 90px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      transform: scaleX(-1);
+      z-index: 100;
+      pointer-events: none;
+      background: black;
+      /* Hidden but still functional for MediaPipe */
+      opacity: 0;
+      visibility: hidden;
+    }
+  </style>
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "three": "https://esm.sh/three@0.160.0",
+    "three/examples/jsm/controls/OrbitControls": "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js",
+    "@tweenjs/tween.js": "https://esm.sh/@tweenjs/tween.js@23.1.1",
+    "three/": "https://esm.sh/three@^0.182.0/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-CG2Bkbtc.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>
